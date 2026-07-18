@@ -1,6 +1,6 @@
 {
   "name": "@i-www/react-native-enriched-html",
-  "version": "1.0.1-flexicalc.2",
+  "version": "1.0.2",
   "description": "FlexiCalc fork of react-native-enriched-html",
   "source": "./src/index.tsx",
   "main": "./lib/module/index.js",

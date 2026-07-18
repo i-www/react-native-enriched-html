@@ -468,6 +468,9 @@ export interface EnrichedTextInputInstance extends NativeMethods {
   /** Toggles inline code on the current selection (or toggles it for future typing if nothing is selected). */
   toggleInlineCode: () => void;
 
+  /** Removes structural paragraph formatting from the current paragraph or selection. */
+  clearParagraphStyle: () => void;
+
   /** Toggles an H1 heading for the paragraph(s) at the current selection. */
   toggleH1: () => void;
 

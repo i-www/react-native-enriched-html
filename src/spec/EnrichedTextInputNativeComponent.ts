@@ -440,6 +440,7 @@ interface NativeCommands {
   toggleUnderline: (viewRef: React.ElementRef<ComponentType>) => void;
   toggleStrikeThrough: (viewRef: React.ElementRef<ComponentType>) => void;
   toggleInlineCode: (viewRef: React.ElementRef<ComponentType>) => void;
+  clearParagraphStyle: (viewRef: React.ElementRef<ComponentType>) => void;
   toggleH1: (viewRef: React.ElementRef<ComponentType>) => void;
   toggleH2: (viewRef: React.ElementRef<ComponentType>) => void;
   toggleH3: (viewRef: React.ElementRef<ComponentType>) => void;
@@ -510,6 +511,7 @@ export const Commands: NativeCommands = codegenNativeCommands<NativeCommands>({
     'toggleUnderline',
     'toggleStrikeThrough',
     'toggleInlineCode',
+    'clearParagraphStyle',
     'toggleH1',
     'toggleH2',
     'toggleH3',
