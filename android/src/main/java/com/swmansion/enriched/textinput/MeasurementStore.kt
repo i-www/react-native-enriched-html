@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Typeface
 import android.graphics.text.LineBreaker
 import android.os.Build
+import android.text.Layout
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.StaticLayout
@@ -33,6 +34,7 @@ object MeasurementStore {
   data class MeasurementParams(
     val initialized: Boolean,
     val cachedWidth: Float,
+    val cachedWidthMode: YogaMeasureMode?,
     val cachedSize: Long,
     val spannable: CharSequence?,
     val paintParams: PaintParams,
@@ -46,13 +48,14 @@ object MeasurementStore {
     paint: TextPaint,
   ): Boolean {
     val cachedWidth = data[id]?.cachedWidth ?: 0f
+    val cachedWidthMode = data[id]?.cachedWidthMode ?: YogaMeasureMode.AT_MOST
     val cachedSize = data[id]?.cachedSize ?: 0L
     val initialized = data[id]?.initialized ?: true
 
-    val size = measure(cachedWidth, spannable, paint)
+    val size = measure(cachedWidth, cachedWidthMode, spannable, paint)
     val paintParams = PaintParams(paint.typeface, paint.textSize)
 
-    data[id] = MeasurementParams(initialized, cachedWidth, size, spannable, paintParams)
+    data[id] = MeasurementParams(initialized, cachedWidth, cachedWidthMode, size, spannable, paintParams)
     return cachedSize != size
   }
 
@@ -62,6 +65,7 @@ object MeasurementStore {
 
   private fun measure(
     maxWidth: Float,
+    widthMode: YogaMeasureMode?,
     spannable: CharSequence?,
     paintParams: PaintParams,
   ): Long {
@@ -71,19 +75,28 @@ object MeasurementStore {
         textSize = paintParams.fontSize
       }
 
-    return measure(maxWidth, spannable, paint)
+    return measure(maxWidth, widthMode, spannable, paint)
   }
 
   private fun measure(
     maxWidth: Float,
+    widthMode: YogaMeasureMode?,
     spannable: CharSequence?,
     paint: TextPaint,
   ): Long {
     val text = spannable ?: ""
     val textLength = text.length
+    val naturalWidth = ceil(Layout.getDesiredWidth(text, paint)).coerceAtLeast(1f)
+    val measuredWidth =
+      when (widthMode) {
+        YogaMeasureMode.EXACTLY -> maxWidth
+        YogaMeasureMode.AT_MOST -> naturalWidth.coerceAtMost(maxWidth)
+        else -> naturalWidth
+      }
+    val layoutWidth = ceil(measuredWidth).coerceAtLeast(1f).toInt()
     val builder =
       StaticLayout.Builder
-        .obtain(text, 0, textLength, paint, maxWidth.toInt())
+        .obtain(text, 0, textLength, paint, layoutWidth)
         .setIncludePad(true)
         .setLineSpacing(0f, 1f)
 
@@ -97,7 +110,7 @@ object MeasurementStore {
 
     val staticLayout = builder.build()
     val heightInSP = PixelUtil.toDIPFromPixel(staticLayout.height.toFloat())
-    val widthInSP = PixelUtil.toDIPFromPixel(maxWidth)
+    val widthInSP = PixelUtil.toDIPFromPixel(measuredWidth)
     return YogaMeasureOutput.make(widthInSP, heightInSP)
   }
 
@@ -141,6 +154,7 @@ object MeasurementStore {
     context: Context,
     id: Int?,
     width: Float,
+    widthMode: YogaMeasureMode?,
     props: ReadableMap?,
   ): Long {
     val defaultView = EnrichedTextInputView(context)
@@ -172,10 +186,10 @@ object MeasurementStore {
 
     val typeface = applyStyles(defaultView.typeface, fontStyle, fontWeight, fontFamily, context.assets)
     val paintParams = PaintParams(typeface, fontSize)
-    val size = measure(width, text, paintParams)
+    val size = measure(width, widthMode, text, paintParams)
 
     if (id != null) {
-      data[id] = MeasurementParams(true, width, size, text, paintParams)
+      data[id] = MeasurementParams(true, width, widthMode, size, text, paintParams)
     }
 
     return size
@@ -185,16 +199,17 @@ object MeasurementStore {
     context: Context,
     id: Int?,
     width: Float,
+    widthMode: YogaMeasureMode?,
     props: ReadableMap?,
   ): Long {
-    val id = id ?: return initialMeasure(context, id, width, props)
-    val value = data[id] ?: return initialMeasure(context, id, width, props)
+    val id = id ?: return initialMeasure(context, id, width, widthMode, props)
+    val value = data[id] ?: return initialMeasure(context, id, width, widthMode, props)
 
     // First measure has to be done using initialMeasure
     // That way it's free of any side effects and async initializations
-    if (!value.initialized) return initialMeasure(context, id, width, props)
+    if (!value.initialized) return initialMeasure(context, id, width, widthMode, props)
 
-    if (width == value.cachedWidth) {
+    if (width == value.cachedWidth && widthMode == value.cachedWidthMode) {
       return value.cachedSize
     }
 
@@ -204,8 +219,8 @@ object MeasurementStore {
         textSize = value.paintParams.fontSize
       }
 
-    val size = measure(width, value.spannable, paint)
-    data[id] = MeasurementParams(true, width, size, value.spannable, value.paintParams)
+    val size = measure(width, widthMode, value.spannable, paint)
+    data[id] = MeasurementParams(true, width, widthMode, size, value.spannable, value.paintParams)
     return size
   }
 
@@ -213,11 +228,12 @@ object MeasurementStore {
     context: Context,
     id: Int?,
     width: Float,
+    widthMode: YogaMeasureMode?,
     height: Float,
     heightMode: YogaMeasureMode?,
     props: ReadableMap?,
   ): Long {
-    val size = getMeasureById(context, id, width, props)
+    val size = getMeasureById(context, id, width, widthMode, props)
     if (heightMode !== YogaMeasureMode.AT_MOST) {
       return size
     }

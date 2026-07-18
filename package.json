@@ -1,7 +1,7 @@
 {
-  "name": "react-native-enriched-html",
-  "version": "1.0.1",
-  "description": "HTML-based Rich Text solution for React Native",
+  "name": "@i-www/react-native-enriched-html",
+  "version": "1.0.1-flexicalc.2",
+  "description": "FlexiCalc fork of react-native-enriched-html",
   "source": "./src/index.tsx",
   "main": "./lib/module/index.js",
   "module": "./lib/module/index.js",
@@ -28,6 +28,7 @@
     "android",
     "ios",
     "cpp",
+    "FLEXICALC_FORK.md",
     "*.podspec",
     "react-native.config.js",
     "!ios/build",
@@ -42,6 +43,7 @@
     "!**/.*"
   ],
   "scripts": {
+    "build": "bob build",
     "example": "yarn workspace react-native-enriched-example",
     "example-web": "yarn workspace react-native-enriched-web-example",
     "test": "jest --passWithNoTests",
@@ -59,7 +61,7 @@
     "lint-clang": "yarn lint-clang:ios && yarn lint-clang:android",
     "lint-clang:fix": "yarn lint-clang:ios:fix && yarn lint-clang:android:fix",
     "clean": "./scripts/git-clean.sh",
-    "prepare": "bob build",
+    "prepack": "corepack yarn build",
     "release": "release-it",
     "android-studio": "open -a 'Android Studio' apps/example/android",
     "xcode": "open -a 'Xcode' apps/example/ios/EnrichedTextInputExample.xcworkspace",
@@ -76,23 +78,26 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/software-mansion/react-native-enriched-html.git"
+    "url": "git+https://github.com/i-www/react-native-enriched-html.git"
   },
   "author": "Software Mansion <contact@swmansion.com> (https://swmansion.com)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/software-mansion/react-native-enriched-html/issues"
+    "url": "https://github.com/i-www/react-native-enriched-html/issues"
   },
-  "homepage": "https://github.com/software-mansion/react-native-enriched-html#readme",
+  "homepage": "https://github.com/i-www/react-native-enriched-html#readme",
   "publishConfig": {
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
+    "@floating-ui/dom": "1.8.0",
     "@tiptap/core": "3.27.1",
     "@tiptap/extension-blockquote": "3.27.1",
     "@tiptap/extension-bold": "3.27.1",
+    "@tiptap/extension-bubble-menu": "3.27.1",
     "@tiptap/extension-code": "3.27.1",
     "@tiptap/extension-document": "3.27.1",
+    "@tiptap/extension-floating-menu": "3.27.1",
     "@tiptap/extension-heading": "3.27.1",
     "@tiptap/extension-history": "3.27.1",
     "@tiptap/extension-image": "3.27.1",
@@ -117,11 +122,12 @@
     "@evilmartians/lefthook": "^1.5.0",
     "@playwright/test": "1.58.2",
     "@react-native-community/cli": "20.0.0",
-    "@react-native/eslint-config": "^0.81.0",
+    "@react-native/eslint-config": "^0.85.0",
+    "@react-native/jest-preset": "0.85.3",
     "@release-it/conventional-changelog": "^9.0.2",
     "@types/jest": "^29.5.5",
-    "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0",
+    "@types/react": "~19.2.2",
+    "@types/react-dom": "^19.2.0",
     "clang-format": "^1.8.0",
     "commitlint": "^19.6.1",
     "del-cli": "^5.1.0",
@@ -132,9 +138,9 @@
     "jest-environment-jsdom": "^29.7.0",
     "playwright": "1.58.2",
     "prettier": "^3.0.3",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "react-native": "0.81.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.85.3",
     "react-native-builder-bob": "^0.40.18",
     "release-it": "^17.10.0",
     "turbo": "^1.10.7",
@@ -156,7 +162,7 @@
     "projects": [
       {
         "displayName": "native",
-        "preset": "react-native",
+        "preset": "@react-native/jest-preset",
         "modulePathIgnorePatterns": [
           "<rootDir>/apps/example/node_modules",
           "<rootDir>/lib/"

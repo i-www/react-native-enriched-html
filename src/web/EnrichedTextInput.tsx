@@ -369,6 +369,7 @@ export const EnrichedTextInput = ({
           runFocused(editor, (c) => c.setTextAlign(alignment));
         }
       },
+      setStyle: () => {},
     }),
     [editor, mentionIndicatorsRef, useHtmlNormalizerRef]
   );

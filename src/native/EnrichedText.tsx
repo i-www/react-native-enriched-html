@@ -10,7 +10,7 @@ import type {
   MeasureInWindowOnSuccessCallback,
   MeasureLayoutOnSuccessCallback,
   MeasureOnSuccessCallback,
-  NativeMethods,
+  ReactNativeElement,
 } from 'react-native';
 import EnrichedTextNativeComponent, {
   type NativeProps,
@@ -22,7 +22,9 @@ import { normalizeEnrichedTextHtmlStyle } from '../utils/normalizeHtmlStyle';
 import type { EnrichedTextProps } from '../types';
 import type { DirectEventHandler } from 'react-native/Libraries/Types/CodegenTypes';
 
-type ComponentType = (Component<NativeProps, {}, any> & NativeMethods) | null;
+type ComponentType =
+  | (Component<NativeProps, {}, any> & ReactNativeElement)
+  | null;
 
 export const EnrichedText = ({
   ref,

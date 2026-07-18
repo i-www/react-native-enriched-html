@@ -14,13 +14,15 @@ import EnrichedTextInputNativeComponent, {
   type OnMentionDetectedInternal,
   type OnRequestHtmlResultEvent,
 } from '../spec/EnrichedTextInputNativeComponent';
-import type {
-  HostInstance,
-  MeasureInWindowOnSuccessCallback,
-  MeasureLayoutOnSuccessCallback,
-  MeasureOnSuccessCallback,
-  NativeMethods,
-  NativeSyntheticEvent,
+import {
+  processColor,
+  type ColorValue,
+  type HostInstance,
+  type MeasureInWindowOnSuccessCallback,
+  type MeasureLayoutOnSuccessCallback,
+  type MeasureOnSuccessCallback,
+  type NativeSyntheticEvent,
+  type ReactNativeElement,
 } from 'react-native';
 import { normalizeHtmlStyle } from '../utils/normalizeHtmlStyle';
 import { toNativeRegexConfig } from '../utils/regexParser';
@@ -39,7 +41,22 @@ const warnMentionIndicators = (indicator: string) => {
   );
 };
 
-type ComponentType = (Component<NativeProps, {}, any> & NativeMethods) | null;
+const getSafeColorInt = (
+  color: ColorValue | null | undefined
+): number | null => {
+  if (color == null) return null;
+
+  const processed = processColor(color);
+  if (typeof processed === 'number') {
+    return processed;
+  }
+
+  return null;
+};
+
+type ComponentType =
+  | (Component<NativeProps, {}, any> & ReactNativeElement)
+  | null;
 
 type HtmlRequest = {
   resolve: (html: string) => void;
@@ -276,6 +293,22 @@ export const EnrichedTextInput = ({
       alignment: 'left' | 'center' | 'right' | 'justify' | 'auto'
     ) => {
       Commands.setTextAlignment(nullthrows(nativeRef.current), alignment);
+    },
+    setStyle: (customStyle: {
+      foregroundColor?: ColorValue | null;
+      backgroundColor?: ColorValue | null;
+    }) => {
+      const payload: {
+        foregroundColor?: number | null;
+        backgroundColor?: number | null;
+      } = {};
+      if (customStyle.foregroundColor !== undefined) {
+        payload.foregroundColor = getSafeColorInt(customStyle.foregroundColor);
+      }
+      if (customStyle.backgroundColor !== undefined) {
+        payload.backgroundColor = getSafeColorInt(customStyle.backgroundColor);
+      }
+      Commands.setStyle(nullthrows(nativeRef.current), JSON.stringify(payload));
     },
   }));
 
