@@ -74,8 +74,8 @@ Size EnrichedTextInputViewShadowNode::measureContent(
         });
       }
 
-      return {estimatedSize.width,
-              MIN(estimatedSize.height, layoutConstraints.maximumSize.height)};
+      return layoutConstraints.clamp(
+          {estimatedSize.width, estimatedSize.height});
     }
   } else {
     __block CGSize estimatedSize;
@@ -93,8 +93,7 @@ Size EnrichedTextInputViewShadowNode::measureContent(
       });
     }
 
-    return {estimatedSize.width,
-            MIN(estimatedSize.height, layoutConstraints.maximumSize.height)};
+    return layoutConstraints.clamp({estimatedSize.width, estimatedSize.height});
   }
 
   return Size();

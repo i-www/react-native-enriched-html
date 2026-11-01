@@ -640,7 +640,7 @@ Class<RCTComponentViewProtocol> EnrichedTextViewCls(void) {
 
 - (CGSize)measureSize:(CGFloat)maxWidth {
   if (textView.textStorage.length == 0) {
-    return CGSizeMake(maxWidth, 0);
+    return CGSizeZero;
   }
 
   NSMutableAttributedString *currentStr = [[NSMutableAttributedString alloc]
@@ -689,8 +689,19 @@ Class<RCTComponentViewProtocol> EnrichedTextViewCls(void) {
   CGRect usedRect =
       [measurementLayoutManager usedRectForTextContainer:measurementContainer];
   CGFloat measuredHeight = ceil(usedRect.size.height);
+  __block CGFloat measuredWidth = 0;
+  NSRange glyphRange = [measurementLayoutManager
+      glyphRangeForTextContainer:measurementContainer];
+  [measurementLayoutManager
+      enumerateLineFragmentsForGlyphRange:glyphRange
+                               usingBlock:^(CGRect rect, CGRect usedRect,
+                                            NSTextContainer *textContainer,
+                                            NSRange glyphRange, BOOL *stop) {
+                                 measuredWidth = MAX(measuredWidth,
+                                                     CGRectGetMaxX(usedRect));
+                               }];
 
-  return CGSizeMake(maxWidth, measuredHeight);
+  return CGSizeMake(MIN(maxWidth, ceil(measuredWidth)), measuredHeight);
 }
 
 - (void)updateState:(State::Shared const &)state

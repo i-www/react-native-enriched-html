@@ -973,13 +973,20 @@ Class<RCTComponentViewProtocol> EnrichedTextInputViewCls(void) {
     }
   }
 
-  CGRect boundingBox =
-      [currentStr boundingRectWithSize:CGSizeMake(maxWidth, CGFLOAT_MAX)
-                               options:NSStringDrawingUsesLineFragmentOrigin |
-                                       NSStringDrawingUsesFontLeading
+  NSStringDrawingOptions drawingOptions =
+      NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading;
+  CGRect naturalBoundingBox =
+      [currentStr boundingRectWithSize:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)
+                               options:drawingOptions
+                               context:nullptr];
+  CGFloat measuredWidth = MIN(maxWidth, ceil(naturalBoundingBox.size.width));
+  CGFloat layoutWidth = MAX(measuredWidth, 1);
+  CGRect constrainedBoundingBox =
+      [currentStr boundingRectWithSize:CGSizeMake(layoutWidth, CGFLOAT_MAX)
+                               options:drawingOptions
                                context:nullptr];
 
-  return CGSizeMake(maxWidth, ceil(boundingBox.size.height));
+  return CGSizeMake(measuredWidth, ceil(constrainedBoundingBox.size.height));
 }
 
 // make sure the newest state is kept in _state property
