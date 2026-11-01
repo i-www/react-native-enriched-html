@@ -97,20 +97,31 @@ appId: swmansion.enriched.example
 - pressKey: Enter
 - tapOn:
     id: 'toolbar-text-color'
+- scroll
 - tapOn:
     id: 'color-swatch-clear'
+- scrollUntilVisible:
+    element:
+      id: 'blur-button'
+    direction: UP
 
 - tapOn:
     id: 'toolbar-quote'
 - tapOn:
     id: 'toolbar-bg-color'
+- scroll
 - tapOn:
     id: 'color-swatch-FFFF00'
 - inputText: 'Quote yellow back'
 - tapOn:
     id: 'toolbar-bg-color'
+- scroll
 - tapOn:
     id: 'color-swatch-clear'
+- scrollUntilVisible:
+    element:
+      id: 'blur-button'
+    direction: UP
 
 - runFlow:
     file: '../subflows/capture_or_assert_screenshot.yaml'

@@ -1,39 +1,37 @@
 #import "EnrichedTextInputView.h"
-#import "AlignmentUtils.h"
-#import "AttachmentLayoutUtils.h"
-#import "ColorExtension.h"
 #import "CoreText/CoreText.h"
-#import "DotReplacementUtils.h"
-#import "HtmlParser.h"
-#import "ImageAttachment.h"
-#import "KeyboardUtils.h"
-#import "LayoutManagerExtension.h"
-#import "ParagraphAttributesUtils.h"
-#import "RCTFabricComponentsPlugins.h"
-#import "ShortcutsUtils.h"
-#import "StringExtension.h"
-#import "StyleHeaders.h"
-#import "StyleUtils.h"
-#import "TextBlockTapGestureRecognizer.h"
-#import "TextInsertionUtils.h"
-#import "UIView+React.h"
-#import "WordsUtils.h"
-#import "ZeroWidthSpaceUtils.h"
+#import "extensions/ColorExtension.h"
+#import "extensions/LayoutManagerExtension.h"
+#import "extensions/StringExtension.h"
+#import "generated/ReactCodegen/ReactNativeEnrichedSpec/EventEmitters.h"
+#import "generated/ReactCodegen/ReactNativeEnrichedSpec/Props.h"
+#import "generated/ReactCodegen/ReactNativeEnrichedSpec/RCTComponentViewHelpers.h"
+#import "htmlParser/HtmlParser.h"
+#import "interfaces/ImageAttachment.h"
+#import "interfaces/StyleHeaders.h"
+#import "internals/EnrichedTextInputViewComponentDescriptor.h"
+#import "utils/AlignmentUtils.h"
+#import "utils/AttachmentLayoutUtils.h"
+#import "utils/DotReplacementUtils.h"
+#import "utils/KeyboardUtils.h"
+#import "utils/ParagraphAttributesUtils.h"
+#import "utils/ShortcutsUtils.h"
+#import "utils/StyleUtils.h"
+#import "utils/TextBlockTapGestureRecognizer.h"
+#import "utils/TextInsertionUtils.h"
+#import "utils/WordsUtils.h"
+#import "utils/ZeroWidthSpaceUtils.h"
 #import <React/RCTConversions.h>
 #import <React/RCTConvert.h>
-#import <ReactNativeEnrichedHtml/EnrichedTextInputViewComponentDescriptor.h>
-#import <ReactNativeEnrichedHtml/EventEmitters.h>
-#import <ReactNativeEnrichedHtml/Props.h>
-#import <ReactNativeEnrichedHtml/RCTComponentViewHelpers.h>
+#import <React/RCTFabricComponentsPlugins.h>
+#import <React/UIView+React.h>
 #import <folly/dynamic.h>
 #import <react/utils/ManagedObjectWrapper.h>
 
 #define GET_STYLE_STATE(TYPE_ENUM)                                             \
-  {                                                                            \
-    .isActive = [self isStyleActive:TYPE_ENUM],                                \
-    .isBlocking = [self isStyle:TYPE_ENUM activeInMap:blockingStyles],         \
-    .isConflicting = [self isStyle:TYPE_ENUM activeInMap:conflictingStyles]    \
-  }
+  {.isActive = [self isStyleActive:TYPE_ENUM],                                 \
+   .isBlocking = [self isStyle:TYPE_ENUM activeInMap:blockingStyles],          \
+   .isConflicting = [self isStyle:TYPE_ENUM activeInMap:conflictingStyles]}
 
 using namespace facebook::react;
 
@@ -140,6 +138,7 @@ Class<RCTComponentViewProtocol> EnrichedTextInputViewCls(void) {
   _recentlyEmittedHtml = @"<html>\n<p></p>\n</html>";
   _emitHtml = NO;
   blockEmitting = NO;
+  preserveTypingAttributesOnNextEmptyCheck = NO;
   _emitFocusBlur = YES;
   _emitTextChange = NO;
   dotReplacementRange = nullptr;
@@ -832,6 +831,20 @@ Class<RCTComponentViewProtocol> EnrichedTextInputViewCls(void) {
     }
   }
 
+  // autoCorrect
+  if (newViewProps.autoCorrect != oldViewProps.autoCorrect) {
+    textView.autocorrectionType = newViewProps.autoCorrect
+                                      ? UITextAutocorrectionTypeYes
+                                      : UITextAutocorrectionTypeNo;
+  }
+
+  // spellCheck
+  if (newViewProps.spellCheck != oldViewProps.spellCheck) {
+    textView.spellCheckingType = newViewProps.spellCheck
+                                     ? UITextSpellCheckingTypeYes
+                                     : UITextSpellCheckingTypeNo;
+  }
+
   // isOnChangeHtmlSet
   _emitHtml = newViewProps.isOnChangeHtmlSet;
 
@@ -1133,7 +1146,7 @@ Class<RCTComponentViewProtocol> EnrichedTextInputViewCls(void) {
   // detect custom style change
   CustomStyle *customStyle = stylesDict[@([CustomStyle getType])];
   CustomStyleData *currentCustomStyle =
-      [customStyle getCustomStyleDataAt:textView.selectedRange.location];
+      [customStyle getCustomStyleDataInRange:textView.selectedRange];
   if (currentCustomStyle != _recentlyEmittedCustomStyle &&
       ![currentCustomStyle isEqual:_recentlyEmittedCustomStyle]) {
     updateNeeded = YES;
@@ -1175,7 +1188,12 @@ Class<RCTComponentViewProtocol> EnrichedTextInputViewCls(void) {
                        ?: "",
                .backgroundColor =
                    [[currentCustomStyle.backgroundColor hexString] UTF8String]
-                       ?: ""}});
+                       ?: "",
+               .fontSize = currentCustomStyle.fontSize
+                               ? [currentCustomStyle.fontSize doubleValue]
+                               : 0.0,
+               .fontFamily =
+                   [currentCustomStyle.fontFamily UTF8String] ?: ""}});
     }
   }
 
@@ -1602,6 +1620,19 @@ Class<RCTComponentViewProtocol> EnrichedTextInputViewCls(void) {
                                             : [RCTConvert UIColor:bgRaw];
   }
 
+  id fsRaw = dict[@"fontSize"];
+  if (fsRaw != nil) {
+    processedDict[@"fontSize"] =
+        [fsRaw isKindOfClass:[NSNull class]] ? [NSNull null] : fsRaw;
+  }
+
+  id ffRaw = dict[@"fontFamily"];
+  if (ffRaw != nil) {
+    processedDict[@"fontFamily"] = [ffRaw isKindOfClass:[NSNull class]]
+                                       ? [NSNull null]
+                                       : [RCTConvert NSString:ffRaw];
+  }
+
   [customStyleClass applyStyleFromDict:processedDict
                          selectedRange:selectedRange];
   [self anyTextMayHaveBeenModified];
@@ -1777,10 +1808,14 @@ Class<RCTComponentViewProtocol> EnrichedTextInputViewCls(void) {
 
   // emptying input typing attributes management
   if (textView.textStorage.string.length == 0 &&
-      _recentInputString.length > 0) {
-    // reset typing attribtues
+      _recentInputString.length > 0 &&
+      !preserveTypingAttributesOnNextEmptyCheck) {
+    // reset typing attributes if we emptied the string
+    // adding alignment via shortcuts wants to preserve typing attributes, so we
+    // don't reset then
     textView.typingAttributes = defaultTypingAttributes;
   }
+  preserveTypingAttributesOnNextEmptyCheck = NO;
 
   // mentions management: removal and editing
   MentionStyle *mentionStyleClass =
@@ -1973,7 +2008,7 @@ Class<RCTComponentViewProtocol> EnrichedTextInputViewCls(void) {
 
     CustomStyle *customStyle = stylesDict[@([CustomStyle getType])];
     CustomStyleData *contextCustomStyleData =
-        [customStyle getCustomStyleDataAt:textView.selectedRange.location];
+        [customStyle getCustomStyleDataInRange:textView.selectedRange];
 
     emitter->onContextMenuItemPress(
         {.itemText = [itemText toCppString],
@@ -2010,7 +2045,12 @@ Class<RCTComponentViewProtocol> EnrichedTextInputViewCls(void) {
                  .backgroundColor =
                      [[contextCustomStyleData.backgroundColor hexString]
                          UTF8String]
-                         ?: ""}}});
+                         ?: "",
+                 .fontSize = contextCustomStyleData.fontSize
+                                 ? [contextCustomStyleData.fontSize doubleValue]
+                                 : 0.0,
+                 .fontFamily =
+                     [contextCustomStyleData.fontFamily UTF8String] ?: ""}}});
   }
 }
 
@@ -2116,6 +2156,14 @@ Class<RCTComponentViewProtocol> EnrichedTextInputViewCls(void) {
                                                                 input:self]) {
     [self anyTextMayHaveBeenModified];
     return NO;
+  }
+
+  // To be sure, we re-run typingAttributes management right before the
+  // character actually lands. Sometimes, between a selection change and the
+  // next keystroke, typing attributes might get removed - this seems like a
+  // native TextKit issue.
+  if (textView.markedTextRange == nil && text.length > 0) {
+    [attributesManager repeatRecentTypingAttributesManagement];
   }
 
   return YES;

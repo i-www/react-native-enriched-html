@@ -1,11 +1,11 @@
 import {
-  type Component,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
+  type ComponentRef,
 } from 'react';
-import { useCallback } from 'react';
 import EnrichedTextInputNativeComponent, {
   Commands,
   type NativeProps,
@@ -17,12 +17,12 @@ import EnrichedTextInputNativeComponent, {
 import {
   processColor,
   type ColorValue,
+  type HostComponent,
   type HostInstance,
   type MeasureInWindowOnSuccessCallback,
   type MeasureLayoutOnSuccessCallback,
   type MeasureOnSuccessCallback,
   type NativeSyntheticEvent,
-  type ReactNativeElement,
 } from 'react-native';
 import { normalizeHtmlStyle } from '../utils/normalizeHtmlStyle';
 import { toNativeRegexConfig } from '../utils/regexParser';
@@ -54,9 +54,7 @@ const getSafeColorInt = (
   return null;
 };
 
-type ComponentType =
-  | (Component<NativeProps, {}, any> & ReactNativeElement)
-  | null;
+type ComponentType = ComponentRef<HostComponent<NativeProps>>;
 
 type HtmlRequest = {
   resolve: (html: string) => void;
@@ -75,6 +73,8 @@ export const EnrichedTextInput = ({
   selectionColor,
   style,
   autoCapitalize = ENRICHED_TEXT_INPUT_DEFAULT_PROPS.autoCapitalize,
+  autoCorrect = true,
+  spellCheck,
   htmlStyle = ENRICHED_TEXT_INPUT_DEFAULT_PROPS.htmlStyle,
   linkRegex: _linkRegex,
   onFocus,
@@ -300,16 +300,26 @@ export const EnrichedTextInput = ({
     setStyle: (customStyle: {
       foregroundColor?: ColorValue | null;
       backgroundColor?: ColorValue | null;
+      fontSize?: number | null;
+      fontFamily?: string | null;
     }) => {
       const payload: {
         foregroundColor?: number | null;
         backgroundColor?: number | null;
+        fontSize?: number | null;
+        fontFamily?: string | null;
       } = {};
       if (customStyle.foregroundColor !== undefined) {
         payload.foregroundColor = getSafeColorInt(customStyle.foregroundColor);
       }
       if (customStyle.backgroundColor !== undefined) {
         payload.backgroundColor = getSafeColorInt(customStyle.backgroundColor);
+      }
+      if (customStyle.fontSize !== undefined) {
+        payload.fontSize = customStyle.fontSize;
+      }
+      if (customStyle.fontFamily !== undefined) {
+        payload.fontFamily = customStyle.fontFamily;
       }
       Commands.setStyle(nullthrows(nativeRef.current), JSON.stringify(payload));
     },
@@ -376,6 +386,8 @@ export const EnrichedTextInput = ({
       selectionColor={selectionColor}
       style={style}
       autoCapitalize={autoCapitalize}
+      autoCorrect={autoCorrect}
+      spellCheck={spellCheck ?? autoCorrect}
       htmlStyle={normalizedHtmlStyle}
       linkRegex={linkRegex}
       onInputFocus={onFocus}

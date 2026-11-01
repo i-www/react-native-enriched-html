@@ -249,6 +249,22 @@ class EnrichedTextInputViewManager :
     view.allowFontScaling = allowFontScaling
   }
 
+  @ReactProp(name = "autoCorrect")
+  override fun setAutoCorrect(
+    view: EnrichedTextInputView?,
+    autoCorrect: Boolean,
+  ) {
+    view?.setAutoCorrect(autoCorrect)
+  }
+
+  @ReactProp(name = "spellCheck")
+  override fun setSpellCheck(
+    view: EnrichedTextInputView?,
+    spellCheck: Boolean,
+  ) {
+    // not supported in Android's RN TextInput
+  }
+
   override fun onAfterUpdateTransaction(view: EnrichedTextInputView) {
     super.onAfterUpdateTransaction(view)
     view.afterUpdateTransaction()
@@ -487,7 +503,7 @@ class EnrichedTextInputViewManager :
     view: EnrichedTextInputView?,
     styleJSON: String,
   ) {
-    // TODO: Implement
+    view?.setStyle(styleJSON)
   }
 
   override fun measure(

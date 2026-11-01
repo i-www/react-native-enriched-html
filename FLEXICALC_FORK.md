@@ -5,12 +5,10 @@
 ## 上游来源
 
 - 上游仓库：`https://github.com/software-mansion/react-native-enriched-html`
-- 当前主线基线：`df8c17bc7da5256286a88adf38d88733cf913ab8`
-- 最近发布版本：`v1.0.1`
-- iOS 颜色能力：上游 PR `#641`
-- PR head：`4ab75310b7d6201ab8389f9e634f44dd6d530a50`
+- 当前主线基线：`2c2239b360b35eef22a44ae9c4d9354fc4761042`
+- 最近发布版本：`v1.2.0`
 - 包名：`@i-www/react-native-enriched-html`
-- 当前版本：`1.0.1-flexicalc.2`
+- 当前版本：`1.2.0`
 - 发布地址：`https://npm.pkg.github.com`
 
 PR `#641` 的功能分支仍基于 `1.0.0` 附近的旧主线，不能直接作为长期基线。本 fork 以最新上游 `main` 为基线，只移植 PR 的净功能改动，避免丢失后续修复。
@@ -41,30 +39,18 @@ PR `#641` 的功能分支仍基于 `1.0.0` 附近的旧主线，不能直接作�
 
 Android 只读文本继续使用上游测量逻辑：单行返回实际行宽，多行使用可用宽度。
 
-### React Native 0.85 类型适配
+### 清除段落样式 API (`clearParagraphStyle`)
 
-React Native `0.85` 使用 `ReactNativeElement` 表达具体宿主实例。以下内部 ref 与事件目标类型从 `NativeMethods` 调整为 `ReactNativeElement`：
+为满足 FlexiCalc 工具栏快速重置标题、引用、列表等结构样式的需求，提供 `clearParagraphStyle` 统一方法：
 
-- `src/native/EnrichedTextInput.tsx`
-- `src/native/EnrichedText.tsx`
-- `src/web/adaptWebToNativeEvent.ts`
-
-公共实例接口仍只继承 `NativeMethods`，因为公开 API 只承诺测量、聚焦等调用能力。
-
-React Native `0.85` 同时将 Jest preset 拆分到 `@react-native/jest-preset`。本 fork 的测试配置直接使用该包，避免继续加载已经只负责报错迁移提示的 `react-native/jest-preset.js`。
-
-`@tiptap/react@3.27.1` 将 Bubble Menu 和 Floating Menu 声明为 `^3.27.1` 的 optional dependency，可能在消费者项目中漂移到不兼容的 `3.28.x`。本 fork 将这两个扩展直接固定为 `3.27.1`，并显式提供 Floating Menu 所需的 `@floating-ui/dom@1.8.0`，确保依赖闭合且整套 Tiptap 保持同一版本。
+- **Spec & Types**: `src/spec/EnrichedTextInputNativeComponent.ts`、`src/types.ts`、`src/native/EnrichedTextInput.tsx`。
+- **iOS**: `ios/EnrichedTextInputView.mm` 中移除选中段落的 H1~H6、BlockQuote、CodeBlock 以及 List 样式。
+- **Android**: `android/.../EnrichedTextInputView.kt` 中遍历移除当前段落上的 paragraphSpans 与 listSpans。
+- **Web**: `src/web/EnrichedTextInput.tsx` 映射至 Tiptap 的 `clearNodes()`。
 
 ## 移植的上游能力
 
-PR `#641` 提供 iOS 自定义文字色与背景色支持：
-
-- `setStyle` 原生命令和 TypeScript API。
-- 当前选区的 `customStyle` 状态上报。
-- iOS attributed string 颜色应用、HTML 解析和 HTML 序列化。
-- `<span style="color: ...; background-color: ...">` 的标准化处理。
-
-Android 的 `setStyle` 在该 PR 中仍为空实现。FlexiCalc 当前只在 iOS 展示颜色入口，Android 与 Web 的颜色编辑和跨端保真不属于当前 fork 的承诺范围。
+官方已在 `v1.2.0`（PR `#817`）中正式合入了全平台 Custom Style 支持（前景色、背景色、字号、字体），覆盖 Android、iOS 与 Web。本 Fork 已完整同步并采用官方最新实现，不再单独维护旧版 PR `#641` 分支。
 
 ## 构建产物
 
@@ -109,7 +95,7 @@ npm publish --registry=https://npm.pkg.github.com
 
 ```json
 {
-  "react-native-enriched-html": "npm:@i-www/react-native-enriched-html@1.0.1-flexicalc.2"
+  "react-native-enriched-html": "npm:@i-www/react-native-enriched-html@1.2.0"
 }
 ```
 
@@ -124,13 +110,15 @@ npm publish --registry=https://npm.pkg.github.com
 - 原生代码、spec 或 Codegen 变化后重新执行 Expo prebuild 并构建 Dev Client。
 - 自适应宽度同时验证垂直列表和无限画布中的编辑与只读状态。
 
-## 同步上游
+## 同步上游规范（Vendor Branching 三分支 Merge 模式）
 
-1. 记录新的上游 commit 或发布 tag。
-2. 检查本文件记录的本地偏离是否已被上游实现。
-3. 只保留上游仍缺失的改动。
-4. 提升 `-flexicalc.N` 版本并重新构建、检查和发布。
-5. 在业务项目中更新 alias 版本并重新安装依赖。
-6. 重新构建 Dev Client，回归颜色、输入框、只读文本和自适应宽度。
+遵循业界针对已发布长期 Fork 的标准，本地维护 `upstream-main` 镜像官方主干，通过 `git merge` 合入 `main`（严禁使用 Rebase 改写已发布版本的历史 Commit SHA）：
 
-当官方发布版同时满足颜色、自适应宽度和当前 React Native 类型要求后，应删除本地 fork 并恢复官方 npm 依赖。
+1. **记录基线与拉取**：切换至 `upstream-main` 分支拉取官方最新 commit 或发布 tag（`git pull upstream main`）。
+2. **合并与偏离检查**：切回 `main` 分支合并官方镜像（`git merge upstream-main`），检查本地偏离是否已被上游官方实现。
+3. **收敛定制改动**：解决冲突，只保留上游仍缺失的独有改动（自适应宽度测量与 `clearParagraphStyle`）。
+4. **验证与发版**：提升 package.json 版本号，执行 `yarn build` 与 `yarn test` 校验后发布。
+5. **业务依赖更新**：在 `flexicalc-rn` 中更新 package.json 的 alias 版本并重新安装依赖。
+6. **全链路回归**：重新构建 Dev Client，回归输入框、只读文本与无限画布的自适应宽度表现。
+
+当官方正式发布版同时满足自适应宽度测量、段落样式重置与当前 React Native 版本要求后，应删除本地 Fork 并恢复官方 npm 依赖。

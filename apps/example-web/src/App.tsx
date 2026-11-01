@@ -14,6 +14,7 @@ import {
   type OnSubmitEditing,
   type OnChangeMentionEvent,
   type OnMentionDetected,
+  type OnLinkPressEvent,
 } from 'react-native-enriched-html';
 import { WEB_DEFAULT_HTML_STYLE } from './defaultHtmlStyle';
 import type { NativeSyntheticEvent } from 'react-native';
@@ -37,6 +38,11 @@ const DEFAULT_LINK_STATE: OnLinkDetected = {
 };
 const LINK_REGEX =
   /^(?:enriched:\/\/\S+|(?:https?:\/\/)?(?:www\.)?swmansion\.com(?:\/\S*)?)$/i;
+
+const SANITIZATION_CONFIG = {
+  linkRegex:
+    /^(?:enriched:\/\/\S+|(?:https?:\/\/)?(?:www\.)?swmansion\.com(?:\/\S*)?|https?:\/\/\S+)$/i,
+};
 
 function App() {
   const ref = useRef<EnrichedTextInputInstance>(null);
@@ -121,16 +127,16 @@ function App() {
 
   const handleUserMentionSelected = (item: MentionItem) => {
     ref.current?.setMention('@', `@${item.name}`, {
-      id: item.id,
-      type: 'user',
+      'id': item.id,
+      'data-type': 'user',
     });
     closeUserMentionPopup();
   };
 
   const handleChannelMentionSelected = (item: MentionItem) => {
     ref.current?.setMention('#', `#${item.name}`, {
-      id: item.id,
-      type: 'channel',
+      'id': item.id,
+      'data-type': 'channel',
     });
     closeChannelMentionPopup();
   };
@@ -219,6 +225,10 @@ function App() {
     setCurrentLink(e);
   };
 
+  const handleLinkPress = (e: OnLinkPressEvent) => {
+    console.log('[EnrichedTextInput] onLinkPress event', e);
+  };
+
   const handlePasteImages = (e: NativeSyntheticEvent<OnPasteImagesEvent>) => {
     const DEFAULT_W = 80;
     const DEFAULT_H = 80;
@@ -270,6 +280,7 @@ function App() {
           onChangeState={handleChangeState}
           onSubmitEditing={handleSubmitEditing}
           onLinkDetected={handleOnLinkDetected}
+          onLinkPress={handleLinkPress}
           onPasteImages={handlePasteImages}
           onStartMention={handleStartMention}
           onChangeMention={handleChangeMention}
@@ -278,6 +289,7 @@ function App() {
           mentionIndicators={['@', '#']}
           htmlStyle={WEB_DEFAULT_HTML_STYLE}
           linkRegex={LINK_REGEX}
+          sanitizationConfig={SANITIZATION_CONFIG}
         />
         <MentionPopup
           variant="user"
