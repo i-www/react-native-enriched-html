@@ -1,7 +1,7 @@
 {
-  "name": "react-native-enriched-html",
-  "version": "1.2.0",
-  "description": "HTML-based Rich Text solution for React Native",
+  "name": "@i-www/react-native-enriched-html",
+  "version": "1.2.2",
+  "description": "FlexiCalc fork of react-native-enriched-html",
   "source": "./src/index.tsx",
   "main": "./lib/module/index.js",
   "module": "./lib/module/index.js",
@@ -28,6 +28,7 @@
     "android",
     "ios",
     "cpp",
+    "FLEXICALC_FORK.md",
     "Package.swift",
     "*.podspec",
     "react-native.config.js",
@@ -43,6 +44,8 @@
     "!**/.*"
   ],
   "scripts": {
+    "build": "bob build",
+    "prepack": "corepack yarn build",
     "example": "yarn workspace react-native-enriched-example",
     "example-web": "yarn workspace react-native-enriched-web-example",
     "docs-install": "cd docs && yarn install",
@@ -80,7 +83,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/software-mansion/react-native-enriched-html.git"
+    "url": "git+https://github.com/i-www/react-native-enriched-html.git"
   },
   "author": "Software Mansion <contact@swmansion.com> (https://swmansion.com)",
   "license": "MIT",
@@ -89,7 +92,7 @@
   },
   "homepage": "https://enriched.swmansion.com/html",
   "publishConfig": {
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
     "@tiptap/core": "3.31.3",
