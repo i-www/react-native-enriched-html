@@ -1,124 +1,155 @@
 # FlexiCalc Fork
 
-本仓库是 `react-native-enriched-html` 的独立 fork，用于维护上游尚未发布的颜色能力、FlexiCalc 所需的原生自适应宽度测量，以及 React Native `0.85` 的原生元素类型适配。构建后的包发布到 GitHub Packages，业务项目只消费发布产物，不直接引用本仓库目录。
+本仓库是 `react-native-enriched-html` 的独立 fork，用于维护 FlexiCalc 所需的原生自适应宽度测量算法、清除段落结构样式 API，以及定制发布规范。构建后的包发布到 GitHub Packages，业务项目通过 npm alias 消费发布产物，不直接引用本仓库源码。
 
-## 上游来源
+---
 
-- 上游仓库：`https://github.com/software-mansion/react-native-enriched-html`
-- 当前主线基线：`2c2239b360b35eef22a44ae9c4d9354fc4761042`（upstream/main）
-- 最近发布版本：`v1.2.2`
-- 包名：`@i-www/react-native-enriched-html`
-- 当前版本：`1.2.2`
-- 发布地址：`https://npm.pkg.github.com`
+## 上游来源与基线
 
-PR `#641` 的功能分支仍基于 `1.0.0` 附近的旧主线，不能直接作为长期基线。本 fork 以最新上游 `main` 为基线，只移植 PR 的净功能改动，避免丢失后续修复。
+- **上游官方仓库**：`https://github.com/software-mansion/react-native-enriched-html`
+- **当前对齐基线**：`2c2239b360b35eef22a44ae9c4d9354fc4761042`（`upstream/main`）
+- **当前发布版本**：`1.2.2`
+- **包名**：`@i-www/react-native-enriched-html`
+- **发布地址**：`https://npm.pkg.github.com`
+
+---
 
 ## 为什么使用独立 Fork
 
-当前偏离同时涉及 TypeScript、Android、iOS、C++、原生 spec 和 Codegen，不适合继续使用 pnpm patch：
+当前偏离涉及原生布局核心（Yoga 测量机制）、Spec 定义与跨端实现（Android、iOS、Web），不适合使用 pnpm patch：
+- **自适应宽度测量跨平台**：Android 与 iOS 的测量机制需要深入 TextKit、StaticLayout 和 ShadowNode 内部，完整源码更容易审查、调试与回归
+- **Codegen Spec 同步**：定制 API（如 `clearParagraphStyle`）修改了原生组件 Spec，必须确保源码、TypeScript 声明和 Codegen 生成文件在同一上下文中生成
+- **避免业务工程污染**：业务仓库无需承载第三方庞大的编译工具链（Bob、Yarn、Codegen）及数百个生成文件
 
-- 原生测量修改跨越多个平台和组件，完整源码更容易审查与调试。
-- PR `#641` 修改原生 spec，必须保证源码、JavaScript、类型声明和 Codegen 产物同步。
-- React Native 升级会同时影响原生元素类型和生成代码，patch 容易产生上下文冲突或遗漏生成文件。
-- 业务仓库无需提交第三方完整源码及数百个生成文件，也不会在安装时运行第三方 Bob、Yarn 或 Codegen。
-- `file:` 或 workspace 引用不适合 EAS 与 CI，因为构建上下文不包含业务仓库外的同级目录。
+---
 
-## FlexiCalc 独有修改
+## FlexiCalc 独有修改规范
 
-### 自适应宽度测量
+本 Fork 严格恪守最小偏离原则，只保留官方主线尚未支持的 2 项独有能力，其余全量对齐官方实现。
 
-统一规则：短内容使用自然宽度；达到 Yoga 最大宽度后使用最大宽度并自动换行；最终宽高必须满足布局约束。
+### 1. 原生自适应宽度测量算法 (Auto-sizing Width Measurement)
 
-| 平台 | 组件 | 文件与入口 | 修改内容 |
-| --- | --- | --- | --- |
-| Android | 输入框 | `android/src/main/java/com/swmansion/enriched/textinput/EnrichedTextInputViewManager.kt` 的 `measure` | 将 Yoga `widthMode` 传递给测量层，区分精确宽度与最大可用宽度。 |
-| Android | 输入框 | `android/src/main/java/com/swmansion/enriched/textinput/MeasurementStore.kt` 的测量与缓存逻辑 | 使用 `Layout.getDesiredWidth` 计算自然宽度；按 `EXACTLY`、`AT_MOST` 和无约束模式确定最终宽度；按最终宽度重新计算换行高度。 |
-| iOS | 输入框 | `ios/EnrichedTextInputView.mm` 的 `measureSize:` | 先测量 attributed string 自然宽度，再限制到最大宽度并重新测量高度。 |
-| iOS | 只读文本 | `ios/EnrichedTextView.mm` 的 `measureSize:` | 统计 TextKit 行片段实际宽度，空内容返回零尺寸。 |
-| iOS | 输入框 ShadowNode | `ios/internals/EnrichedTextInputViewShadowNode.mm` 的 `measureContent` | 使用 `layoutConstraints.clamp` 同时限制原生测量宽高。 |
+**设计目标**：短内容采用自然宽度；达到 Yoga 最大约束后自适应换行；最终宽高严格符合父容器布局约束。
 
-Android 只读文本继续使用上游测量逻辑：单行返回实际行宽，多行使用可用宽度。
+| 平台 | 组件 | 涉及文件 | 核心逻辑 |
+| :--- | :--- | :--- | :--- |
+| **Android** | 输入框 Manager | `android/.../EnrichedTextInputViewManager.kt` | 将 Yoga `widthMode` 传递至测量层，区分精确宽度（EXACTLY）与上限约束（AT_MOST） |
+| **Android** | 测量缓存存储 | `android/.../MeasurementStore.kt` | 使用 `Layout.getDesiredWidth` 计算单行自然宽度，根据测量模式确定排版宽度并重新测量高度 |
+| **iOS** | 输入框 | `ios/EnrichedTextInputView.mm` | 先以 `CGFLOAT_MAX` 测量自然宽度，再根据 `MIN(maxWidth, naturalWidth)` 限制换行并计算高度 |
+| **iOS** | 只读文本 | `ios/EnrichedTextView.mm` | 遍历 `enumerateLineFragmentsForGlyphRange` 统计实际行片段最大宽度，空内容返回零尺寸 |
+| **iOS** | 输入框 ShadowNode | `ios/internals/EnrichedTextInputViewShadowNode.mm` | 使用 `layoutConstraints.clamp` 约束原生测量宽高 |
 
-### 清除段落样式 API (`clearParagraphStyle`)
+### 2. 清除段落结构样式 API (`clearParagraphStyle`)
 
-为满足 FlexiCalc 工具栏快速重置标题、引用、列表等结构样式的需求，提供 `clearParagraphStyle` 统一方法：
+**设计目标**：为满足富文本工具栏一键重置标题、引用、代码块与列表样式的交互需求，提供全平台统一的原生与 Web 实现。
 
-- **Spec & Types**: `src/spec/EnrichedTextInputNativeComponent.ts`、`src/types.ts`、`src/native/EnrichedTextInput.tsx`。
-- **iOS**: `ios/EnrichedTextInputView.mm` 中移除选中段落的 H1~H6、BlockQuote、CodeBlock 以及 List 样式。
-- **Android**: `android/.../EnrichedTextInputView.kt` 中遍历移除当前段落上的 paragraphSpans 与 listSpans。
-- **Web**: `src/web/EnrichedTextInput.tsx` 映射至 Tiptap 的 `clearNodes()`。
+| 层面 | 涉及文件 | 职责与实现 |
+| :--- | :--- | :--- |
+| **Spec** | `src/spec/EnrichedTextInputNativeComponent.ts` | 声明原生命令 `clearParagraphStyle: (viewRef: React.ElementRef<...>) => void` |
+| **Type** | `src/types.ts`、`src/native/EnrichedTextInput.tsx` | 对外导出组件 ref 方法 `clearParagraphStyle(): void` |
+| **Web** | `src/web/EnrichedTextInput.tsx` | 映射至 Tiptap 编辑器的 `editor.chain().focus().clearNodes().run()` |
+| **iOS** | `ios/EnrichedTextInputView.mm` | 遍历移除选中段落的 `H1~H6`、`BlockQuote`、`CodeBlock` 及 `List` 样式并触发重排 |
+| **Android** | `android/.../EnrichedTextInputView.kt` | 遍历当前选区涉及段落，安全移除关联的段落与列表 span 并更新布局 |
 
-## 移植的上游能力
+---
 
-官方已在 `v1.2.0`（PR `#817`）中正式合入了全平台 Custom Style 支持（前景色、背景色、字号、字体），覆盖 Android、iOS 与 Web。本 Fork 已完整同步并采用官方最新实现，不再单独维护旧版 PR `#641` 分支。
+## 提交拓扑规范（纯净 Rebase / 原子 Feature Commits 模型）
 
-## 构建产物
+为了确保与官方代码库无缝对齐并便于随时向上游提 PR，本 Fork 严格采用**纯净线性历史**，严禁引入任何 merge commit。
 
-以下目录是修改事实来源：
+每次与官方对齐或升级版本时，必须保持以下 3 个标准的原子 Commit 拓扑：
 
-- `src`
-- `android/src`
-- `ios` 中排除 `ios/generated` 的源码
-- `cpp`
+```text
+HEAD -> main (origin/main)
+ │
+ ├── Commit 3: chore: 升级至 x.y.z 并维护 FlexiCalc Fork 配置规范
+ │             (修改 package.json, yarn.lock, FLEXICALC_FORK.md)
+ │
+ ├── Commit 2: feat(api): 提供 clearParagraphStyle 段落重置接口
+ │             (覆盖 Spec, Types, Web, iOS, Android)
+ │
+ ├── Commit 1: feat(measurement): 实现原生自适应宽度测量算法
+ │             (覆盖 iOS TextInput/TextView/ShadowNode, Android TextInput/MeasurementStore)
+ │
+ └── Upstream Baseline: 官方最新主干或 Release Tag (upstream/main)
+```
 
-以下目录由 Bob 和 React Native Codegen 生成，禁止手工修改，也不提交到 Git：
+---
 
-- `lib`
-- `ios/generated`
-- `android/generated`
+## 业界标准上游对齐与发布操作流程
 
-修改 TypeScript、原生 spec 或公开类型后执行：
+当需要同步上游官方新版本或主干提交时，遵循以下标准化流程：
 
+### 1. 更新上游镜像并重置工作基线
 ```bash
-corepack yarn install
+git fetch upstream
+git checkout -B upstream-main upstream/main
+```
+
+### 2. 基于上游基线重新应用定制原子提交
+以 `upstream/main` 创建临时工作分支，依次 cherry-pick 或重新应用 3 个纯净原子提交：
+```bash
+git checkout -b align-upstream upstream/main
+
+# 依次应用特性改动并分别创建原子提交：
+# 1. 提交自适应宽度测量算法
+git commit -m "feat(measurement): 实现原生自适应宽度测量算法"
+
+# 2. 提交清除段落结构样式 API
+git commit -m "feat(api): 提供 clearParagraphStyle 段落重置接口"
+
+# 3. 提交 Fork 工程配置（升级版本号至新版本，如 1.2.x）
+git commit -m "chore: 升级至 1.2.x 并维护 FlexiCalc Fork 配置规范"
+```
+
+### 3. 全量构建与严格质量校验
+在本地必须完成全套构建与测试，确保 100% 通过无任何告警：
+```bash
+# 生成 Codegen 原生代码与 TS 声明
 corepack yarn build
+
+# 运行全套单元测试（必须 14 个套件全部通过）
+corepack yarn test
+
+# 运行 TypeScript 类型检查与代码规范检查
+corepack yarn typecheck:lib
+corepack yarn lint
 ```
 
-`prepack` 会在发布前执行完整构建。发布包必须包含 `lib`、`ios/generated` 和 `android/generated`，业务项目安装发布包时不会执行构建工具链。
-
-## 发布与消费
-
-发布前确认 GitHub Packages 身份和包内容：
-
+### 4. 远程分支更新与 GitHub Packages 发布
 ```bash
-npm whoami --registry=https://npm.pkg.github.com
-npm pack --dry-run --registry=https://npm.pkg.github.com
+# 将当前分支切换为 main 并强推至远程建立干净线性历史
+git branch -M main
+git push -u origin main --force
+
+# 创建对应版本的 Git Tag 并推送
+git tag -f v1.2.x
+git push origin v1.2.x --force
+
+# 正式发布包到 GitHub Packages（不可变版本策略）
+npm publish
 ```
 
-确认清单包含 JavaScript、类型声明、原生源码和双端 Codegen 产物后发布：
+### 5. 业务主工程（`flexicalc-rn`）集成升级
+1. 在 `flexicalc-rn/package.json` 中更新别名版本：
+   ```json
+   "react-native-enriched-html": "npm:@i-www/react-native-enriched-html@1.2.x"
+   ```
+2. 安装依赖并更新 Pods：
+   ```bash
+   pnpm install
+   cd ios && pod install
+   ```
+3. 验证主工程构建：
+   ```bash
+   xcodebuild -workspace ios/FlexiCalc.xcworkspace -scheme FlexiCalc -configuration Release -destination 'generic/platform=iOS' build
+   ```
 
-```bash
-npm publish --registry=https://npm.pkg.github.com
-```
+---
 
-业务项目通过 npm alias 保持原导入名不变：
+## 退出机制
 
-```json
-{
-  "react-native-enriched-html": "npm:@i-www/react-native-enriched-html@1.2.0"
-}
-```
-
-业务项目的 `.npmrc` 必须为 `@i-www` 配置 GitHub Packages registry 和具有 `read:packages` 权限的 token。EAS 与 CI 应通过 Secret 注入 token，不要提交真实凭据。
-
-## 验证要求
-
-- 运行 `corepack yarn build`，确认源码与生成产物同步。
-- 运行 `corepack yarn test`、`corepack yarn lint` 和 `corepack yarn typecheck:lib`。
-- 运行 `npm pack --dry-run`，确认发布包包含全部运行时与原生构建文件。
-- 在业务项目中确认 lockfile 指向 GitHub Packages，而不是 workspace 或 patch。
-- 原生代码、spec 或 Codegen 变化后重新执行 Expo prebuild 并构建 Dev Client。
-- 自适应宽度同时验证垂直列表和无限画布中的编辑与只读状态。
-
-## 同步上游规范（Vendor Branching 三分支 Merge 模式）
-
-遵循业界针对已发布长期 Fork 的标准，本地维护 `upstream-main` 镜像官方主干，通过 `git merge` 合入 `main`（严禁使用 Rebase 改写已发布版本的历史 Commit SHA）：
-
-1. **记录基线与拉取**：切换至 `upstream-main` 分支拉取官方最新 commit 或发布 tag（`git pull upstream main`）。
-2. **合并与偏离检查**：切回 `main` 分支合并官方镜像（`git merge upstream-main`），检查本地偏离是否已被上游官方实现。
-3. **收敛定制改动**：解决冲突，只保留上游仍缺失的独有改动（自适应宽度测量与 `clearParagraphStyle`）。
-4. **验证与发版**：提升 package.json 版本号，执行 `yarn build` 与 `yarn test` 校验后发布。
-5. **业务依赖更新**：在 `flexicalc-rn` 中更新 package.json 的 alias 版本并重新安装依赖。
-6. **全链路回归**：重新构建 Dev Client，回归输入框、只读文本与无限画布的自适应宽度表现。
-
-当官方正式发布版同时满足自适应宽度测量、段落样式重置与当前 React Native 版本要求后，应删除本地 Fork 并恢复官方 npm 依赖。
+当上游官方版本满足以下条件时，应废除此 Fork 并直接替换为官方 npm 包：
+1. 官方正式合入了段落样式一键重置接口（`clearParagraphStyle` 或同等 API）
+2. 官方原生输入框与只读文本完全支持无限画布所需的自适应宽度测量
+3. 官方包与当前 React Native 版本完全兼容
