@@ -388,6 +388,7 @@ export const EnrichedTextInput = ({
       toggleUnderline: () => runFocused(editor, (c) => c.toggleUnderline()),
       toggleStrikeThrough: () => runFocused(editor, (c) => c.toggleStrike()),
       toggleInlineCode: () => runFocused(editor, (c) => c.toggleCode()),
+      clearParagraphStyle: () => runFocused(editor, (c) => c.clearNodes()),
       toggleH1: () => runFocused(editor, (c) => c.toggleHeading({ level: 1 })),
       toggleH2: () => runFocused(editor, (c) => c.toggleHeading({ level: 2 })),
       toggleH3: () => runFocused(editor, (c) => c.toggleHeading({ level: 3 })),

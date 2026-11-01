@@ -1273,6 +1273,8 @@ Class<RCTComponentViewProtocol> EnrichedTextInputViewCls(void) {
     [self toggleRegularStyle:[StrikethroughStyle getType]];
   } else if ([commandName isEqualToString:@"toggleInlineCode"]) {
     [self toggleRegularStyle:[InlineCodeStyle getType]];
+  } else if ([commandName isEqualToString:@"clearParagraphStyle"]) {
+    [self clearParagraphStyle];
   } else if ([commandName isEqualToString:@"addLink"]) {
     NSInteger start = [((NSNumber *)args[0]) integerValue];
     NSInteger end = [((NSNumber *)args[1]) integerValue];
@@ -1536,6 +1538,31 @@ Class<RCTComponentViewProtocol> EnrichedTextInputViewCls(void) {
 }
 
 // MARK: - Styles manipulation
+
+- (void)clearParagraphStyle {
+  NSRange range = [textView.textStorage.string
+      paragraphRangeForRange:textView.selectedRange];
+  NSArray<NSNumber *> *structuralStyles = @[
+    @([H1Style getType]), @([H2Style getType]), @([H3Style getType]),
+    @([H4Style getType]), @([H5Style getType]), @([H6Style getType]),
+    @([BlockQuoteStyle getType]), @([CodeBlockStyle getType]),
+    @([UnorderedListStyle getType]), @([OrderedListStyle getType]),
+    @([CheckboxListStyle getType])
+  ];
+  BOOL didRemoveStyle = NO;
+
+  for (NSNumber *type in structuralStyles) {
+    StyleBase *style = stylesDict[type];
+    if (style != nil && [style any:range]) {
+      [style remove:range withDirtyRange:YES];
+      didRemoveStyle = YES;
+    }
+  }
+
+  if (didRemoveStyle) {
+    [self anyTextMayHaveBeenModified];
+  }
+}
 
 - (void)toggleRegularStyle:(StyleType)type {
   StyleBase *style = stylesDict[@(type)];

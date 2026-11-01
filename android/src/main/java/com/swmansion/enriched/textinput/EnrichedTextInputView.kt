@@ -981,6 +981,36 @@ class EnrichedTextInputView :
     parametrizedStyles?.onStyleToggled(name, rangeStart, rangeEnd)
   }
 
+  fun clearParagraphStyle() {
+    val structuralStyles = EnrichedSpans.paragraphSpans.keys + EnrichedSpans.listSpans.keys
+
+    for (style in structuralStyles) {
+      val currentSelection = selection ?: return
+      val selectionStart = currentSelection.start
+      val selectionEnd = currentSelection.end
+      val lengthBefore = text?.length ?: 0
+      var didRemoveStyle = false
+
+      runAsATransaction {
+        val (rangeStart, rangeEnd) = getTargetRange(style)
+        didRemoveStyle = removeStyle(style, rangeStart, rangeEnd)
+        if (didRemoveStyle) {
+          spanState?.setStart(style, null)
+        }
+      }
+
+      if (didRemoveStyle) {
+        val removedCharacterCount = lengthBefore - (text?.length ?: 0)
+        val nextEnd = (selectionEnd - removedCharacterCount).coerceAtLeast(0)
+        val nextStart = selectionStart.coerceAtMost(nextEnd)
+        currentSelection.onSelection(nextStart, nextEnd)
+      }
+    }
+
+    selection?.validateStyles()
+    layoutManager.invalidateLayout()
+  }
+
   fun toggleCheckboxListItem(checked: Boolean) {
     val isValid = verifyStyle(EnrichedSpans.CHECKBOX_LIST)
     if (!isValid) return

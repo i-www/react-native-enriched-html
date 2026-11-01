@@ -222,6 +222,9 @@ export const EnrichedTextInput = ({
     toggleInlineCode: () => {
       Commands.toggleInlineCode(nullthrows(nativeRef.current));
     },
+    clearParagraphStyle: () => {
+      Commands.clearParagraphStyle(nullthrows(nativeRef.current));
+    },
     toggleH1: () => {
       Commands.toggleH1(nullthrows(nativeRef.current));
     },

@@ -390,6 +390,10 @@ class EnrichedTextInputViewManager :
     view?.verifyAndToggleStyle(EnrichedSpans.INLINE_CODE)
   }
 
+  override fun clearParagraphStyle(view: EnrichedTextInputView?) {
+    view?.clearParagraphStyle()
+  }
+
   override fun toggleH1(view: EnrichedTextInputView?) {
     view?.verifyAndToggleStyle(EnrichedSpans.H1)
   }
